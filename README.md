@@ -24,7 +24,7 @@ Differenced Normalised Burn Ratio (dNBR) from Landsat 9 OLI-2. Five severity cla
 Essential Habitat mapping under the VMA 1999, with the Southern Cassowary as indicator species (n = 372 records). Gap analysis reveals 8.7% of Essential Habitat formally protected.
 [Live map](https://alberto98gallodot.github.io/Habitat-mapping-Wet-tropics/)
 
-### 🩵 Port Adelaide Coastal Inundation Assessment — *South Australia*
+### 🔵 Port Adelaide Coastal Inundation Assessment — *South Australia*
 Bathtub inundation model with hydraulic connectivity correction (GRASS r.clump) on 1 m LiDAR. The +1.0 m (2100) scenario floods 36.8 ha and exposes 58 buildings at Birkenhead; planning exposure mapped against the SA Planning & Design Code.
 [Live map](https://alberto98gallodot.github.io/coastal-flooding-port-adelaide/)
 
