@@ -1,0 +1,681 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/leaflet.photon.css">
+        <link rel="stylesheet" href="css/leaflet-measure.css">
+        <style>
+        html, body, #map {
+            width: 100%;
+            height: 100vh;
+            padding: 0;
+            margin: 0;
+            background: #000000;
+        }
+        </style>
+        <title>Port Adelaide — Coastal Inundation 2100</title>
+    </head>
+    <body>
+        <div id="map">
+        </div>
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="js/leaflet.photon.js"></script>
+        <script src="js/leaflet-measure.js"></script>
+        <script src="data/MeanelevationperhexagonmAHD1_0.js"></script>
+        <script src="data/PDCzonesintersectinginundation_1.js"></script>
+        <script src="data/Buildingfootprints_2.js"></script>
+        <script src="data/Exposedbuildingsperhexagon2100_3.js"></script>
+        <script src="data/Inundationextent210010mAHD_4.js"></script>
+        <script src="data/Exposedbuildingsn58_5.js"></script>
+        <script>
+        var map = L.map('map', {
+            zoomControl:false, maxZoom:19, minZoom:10
+        }).fitBounds([[-34.9481862637941,138.40248760968532],[-34.816483671310394,138.56790000042284]]);
+        var hash = new L.Hash(map);
+        // BASEMAP — CartoDB Dark Matter (sfondo nero)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors © CARTO',
+            subdomains: 'abcd',
+            maxZoom: 19
+        }).addTo(map);
+        map.attributionControl.setPrefix('<a href="https://github.com/qgis2web/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+        // remove popup's row if "visible-with-data"
+        function removeEmptyRowsFromPopupContent(content, feature) {
+         var tempDiv = document.createElement('div');
+         tempDiv.innerHTML = content;
+         var rows = tempDiv.querySelectorAll('tr');
+         for (var i = 0; i < rows.length; i++) {
+             var td = rows[i].querySelector('td.visible-with-data');
+             var key = td ? td.id : '';
+             if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                 rows[i].parentNode.removeChild(rows[i]);
+             }
+         }
+         return tempDiv.innerHTML;
+        }
+        // modify popup if contains media
+        function addClassToPopupIfMedia(content, popup) {
+            var tempDiv = document.createElement('div');
+            tempDiv.innerHTML = content;
+            var imgTd = tempDiv.querySelector('td img');
+            if (imgTd) {
+                var src = imgTd.getAttribute('src');
+                if (/\.(jpg|jpeg|png|gif|bmp|webp|avif)$/i.test(src)) {
+                    popup._contentNode.classList.add('media');
+                    setTimeout(function() {
+                        popup.update();
+                    }, 10);
+                } else if (/\.(mp3|wav|ogg|aac)$/i.test(src)) {
+                    var audio = document.createElement('audio');
+                    audio.controls = true;
+                    audio.src = src;
+                    imgTd.parentNode.replaceChild(audio, imgTd);
+                    popup._contentNode.classList.add('media');
+                    setTimeout(function() {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else if (/\.(mp4|webm|ogg|mov)$/i.test(src)) {
+                    var video = document.createElement('video');
+                    video.controls = true;
+                    video.src = src;
+                    video.style.width = "400px";
+                    video.style.height = "300px";
+                    video.style.maxHeight = "60vh";
+                    video.style.maxWidth = "60vw";
+                    imgTd.parentNode.replaceChild(video, imgTd);
+                    popup._contentNode.classList.add('media');
+                    video.addEventListener('loadedmetadata', function() {
+                        popup.update();
+                    });
+                    setTimeout(function() {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else {
+                    popup._contentNode.classList.remove('media');
+                }
+            } else {
+                popup._contentNode.classList.remove('media');
+            }
+        }
+        var zoomControl = L.control.zoom({
+            position: 'topleft'
+        }).addTo(map);
+        var measureControl = new L.Control.Measure({
+            position: 'topleft',
+            primaryLengthUnit: 'meters',
+            secondaryLengthUnit: 'kilometers',
+            primaryAreaUnit: 'sqmeters',
+            secondaryAreaUnit: 'hectares'
+        });
+        measureControl.addTo(map);
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].innerHTML = '';
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].className += ' fas fa-ruler';
+        var bounds_group = new L.featureGroup([]);
+        function setBounds() {
+        }
+        function pop_MeanelevationperhexagonmAHD1_0(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Mean elevation (m AHD)</th>\
+                        <td class="visible-with-data" id="elev_mean">' + (feature.properties['elev_mean'] !== null ? autolinker.link(String(feature.properties['elev_mean']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_MeanelevationperhexagonmAHD1_0_0(feature) {
+            if (feature.properties['elev_mean'] >= 0.000000 && feature.properties['elev_mean'] <= 0.820292 ) {
+                return {
+                pane: 'pane_MeanelevationperhexagonmAHD1_0',
+                opacity: 1,
+                color: 'rgba(210,210,210,0.3779137254901961)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(8,48,107,0.634)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['elev_mean'] >= 0.820292 && feature.properties['elev_mean'] <= 2.196826 ) {
+                return {
+                pane: 'pane_MeanelevationperhexagonmAHD1_0',
+                opacity: 1,
+                color: 'rgba(210,210,210,0.3779137254901961)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(41,121,185,0.634)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['elev_mean'] >= 2.196826 && feature.properties['elev_mean'] <= 3.297270 ) {
+                return {
+                pane: 'pane_MeanelevationperhexagonmAHD1_0',
+                opacity: 1,
+                color: 'rgba(210,210,210,0.3779137254901961)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(115,178,216,0.634)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['elev_mean'] >= 3.297270 && feature.properties['elev_mean'] <= 4.958069 ) {
+                return {
+                pane: 'pane_MeanelevationperhexagonmAHD1_0',
+                opacity: 1,
+                color: 'rgba(210,210,210,0.3779137254901961)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(200,220,240,0.634)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['elev_mean'] >= 4.958069 && feature.properties['elev_mean'] <= 7.669490 ) {
+                return {
+                pane: 'pane_MeanelevationperhexagonmAHD1_0',
+                opacity: 1,
+                color: 'rgba(210,210,210,0.3779137254901961)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(247,251,255,0.634)',
+                interactive: true,
+            }
+            }
+            // DEFAULT — feature senza valore: invisibile (niente cerchi/poligoni blu)
+            return {
+                pane: 'pane_MeanelevationperhexagonmAHD1_0',
+                opacity: 0,
+                fill: false,
+                fillOpacity: 0,
+                interactive: false,
+            }
+        }
+        map.createPane('pane_MeanelevationperhexagonmAHD1_0');
+        map.getPane('pane_MeanelevationperhexagonmAHD1_0').style.zIndex = 400;
+        map.getPane('pane_MeanelevationperhexagonmAHD1_0').style['mix-blend-mode'] = 'normal';
+        var layer_MeanelevationperhexagonmAHD1_0 = new L.geoJson(json_MeanelevationperhexagonmAHD1_0, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_MeanelevationperhexagonmAHD1_0',
+            layerName: 'layer_MeanelevationperhexagonmAHD1_0',
+            pane: 'pane_MeanelevationperhexagonmAHD1_0',
+            onEachFeature: pop_MeanelevationperhexagonmAHD1_0,
+            style: style_MeanelevationperhexagonmAHD1_0_0,
+        });
+        bounds_group.addLayer(layer_MeanelevationperhexagonmAHD1_0);
+        map.addLayer(layer_MeanelevationperhexagonmAHD1_0);
+        function pop_PDCzonesintersectinginundation_1(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td class="visible-with-data" id="value" colspan="2"><strong>PDC zone</strong><br />' + (feature.properties['value'] !== null ? autolinker.link(String(feature.properties['value']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Area (ha)</th>\
+                        <td>' + (feature.properties['area_ha'] !== null ? autolinker.link(String(feature.properties['area_ha']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_PDCzonesintersectinginundation_1_0(feature) {
+            switch(String(feature.properties['value'])) {
+                case 'E':
+                    return {
+                pane: 'pane_PDCzonesintersectinginundation_1',
+                opacity: 1,
+                color: 'rgba(141,211,199,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 3.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case 'EN':
+                    return {
+                pane: 'pane_PDCzonesintersectinginundation_1',
+                opacity: 1,
+                color: 'rgba(255,255,179,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 3.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case 'GN':
+                    return {
+                pane: 'pane_PDCzonesintersectinginundation_1',
+                opacity: 1,
+                color: 'rgba(190,186,218,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 3.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case 'HDN':
+                    return {
+                pane: 'pane_PDCzonesintersectinginundation_1',
+                opacity: 1,
+                color: 'rgba(249,127,113,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 3.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case 'OS':
+                    return {
+                pane: 'pane_PDCzonesintersectinginundation_1',
+                opacity: 1,
+                color: 'rgba(128,177,211,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 3.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case 'Rec':
+                    return {
+                pane: 'pane_PDCzonesintersectinginundation_1',
+                opacity: 1,
+                color: 'rgba(253,180,98,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 3.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case 'SE':
+                    return {
+                pane: 'pane_PDCzonesintersectinginundation_1',
+                opacity: 1,
+                color: 'rgba(179,222,105,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 3.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case 'UAC':
+                    return {
+                pane: 'pane_PDCzonesintersectinginundation_1',
+                opacity: 1,
+                color: 'rgba(252,205,229,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 3.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case 'WN':
+                    return {
+                pane: 'pane_PDCzonesintersectinginundation_1',
+                opacity: 1,
+                color: 'rgba(217,217,217,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 3.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                default:
+                    return {
+                pane: 'pane_PDCzonesintersectinginundation_1',
+                opacity: 0,
+                fillOpacity: 0,
+                interactive: false,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_PDCzonesintersectinginundation_1');
+        map.getPane('pane_PDCzonesintersectinginundation_1').style.zIndex = 401;
+        map.getPane('pane_PDCzonesintersectinginundation_1').style['mix-blend-mode'] = 'normal';
+        var layer_PDCzonesintersectinginundation_1 = new L.geoJson(json_PDCzonesintersectinginundation_1, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_PDCzonesintersectinginundation_1',
+            layerName: 'layer_PDCzonesintersectinginundation_1',
+            pane: 'pane_PDCzonesintersectinginundation_1',
+            onEachFeature: pop_PDCzonesintersectinginundation_1,
+            style: style_PDCzonesintersectinginundation_1_0,
+        });
+        bounds_group.addLayer(layer_PDCzonesintersectinginundation_1);
+        map.addLayer(layer_PDCzonesintersectinginundation_1);
+        function pop_Buildingfootprints_2(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['name'] !== null ? autolinker.link(String(feature.properties['name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Buildingfootprints_2_0() {
+            return {
+                pane: 'pane_Buildingfootprints_2',
+                opacity: 1,
+                color: 'rgba(35,35,35,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(20,78,82,0.5627450980392157)',
+                interactive: false,
+            }
+        }
+        map.createPane('pane_Buildingfootprints_2');
+        map.getPane('pane_Buildingfootprints_2').style.zIndex = 402;
+        map.getPane('pane_Buildingfootprints_2').style['mix-blend-mode'] = 'normal';
+        var layer_Buildingfootprints_2 = new L.geoJson(json_Buildingfootprints_2, {
+            attribution: '',
+            interactive: false,
+            dataVar: 'json_Buildingfootprints_2',
+            layerName: 'layer_Buildingfootprints_2',
+            pane: 'pane_Buildingfootprints_2',
+            onEachFeature: pop_Buildingfootprints_2,
+            style: style_Buildingfootprints_2_0,
+        });
+        bounds_group.addLayer(layer_Buildingfootprints_2);
+        map.addLayer(layer_Buildingfootprints_2);
+        function pop_Exposedbuildingsperhexagon2100_3(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2"><strong>Exposed buildings</strong><br />' + (feature.properties['NUMPOINTS'] !== null ? autolinker.link(String(feature.properties['NUMPOINTS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Exposedbuildingsperhexagon2100_3_0(feature) {
+            // normalizza NUMPOINTS: gestisce sia 1 che 1.0 che "1.0"
+            var np = parseFloat(feature.properties['NUMPOINTS']);
+            if (np >= 12) {
+                return {
+                pane: 'pane_Exposedbuildingsperhexagon2100_3',
+                opacity: 1, color: 'rgba(225,225,225,0.7)', dashArray: '',
+                lineCap: 'butt', lineJoin: 'miter', weight: 3.0,
+                fill: true, fillOpacity: 1, fillColor: 'rgba(103,0,13,0.7)', interactive: true,
+            }
+            }
+            if (np >= 7) {
+                return {
+                pane: 'pane_Exposedbuildingsperhexagon2100_3',
+                opacity: 1, color: 'rgba(225,225,225,0.7)', dashArray: '',
+                lineCap: 'butt', lineJoin: 'miter', weight: 3.0,
+                fill: true, fillOpacity: 1, fillColor: 'rgba(197,22,28,0.7)', interactive: true,
+            }
+            }
+            if (np >= 6) {
+                return {
+                pane: 'pane_Exposedbuildingsperhexagon2100_3',
+                opacity: 1, color: 'rgba(225,225,225,0.7)', dashArray: '',
+                lineCap: 'butt', lineJoin: 'miter', weight: 3.0,
+                fill: true, fillOpacity: 1, fillColor: 'rgba(244,77,56,0.7)', interactive: true,
+            }
+            }
+            if (np >= 3) {
+                return {
+                pane: 'pane_Exposedbuildingsperhexagon2100_3',
+                opacity: 1, color: 'rgba(225,225,225,0.7)', dashArray: '',
+                lineCap: 'butt', lineJoin: 'miter', weight: 3.0,
+                fill: true, fillOpacity: 1, fillColor: 'rgba(252,143,111,0.7)', interactive: true,
+            }
+            }
+            if (np >= 2) {
+                return {
+                pane: 'pane_Exposedbuildingsperhexagon2100_3',
+                opacity: 1, color: 'rgba(225,225,225,0.7)', dashArray: '',
+                lineCap: 'butt', lineJoin: 'miter', weight: 3.0,
+                fill: true, fillOpacity: 1, fillColor: 'rgba(253,204,184,0.7)', interactive: true,
+            }
+            }
+            if (np >= 1) {
+                return {
+                pane: 'pane_Exposedbuildingsperhexagon2100_3',
+                opacity: 1, color: 'rgba(225,225,225,0.7)', dashArray: '',
+                lineCap: 'butt', lineJoin: 'miter', weight: 3.0,
+                fill: true, fillOpacity: 1, fillColor: 'rgba(255,245,240,0.7)', interactive: true,
+            }
+            }
+            // DEFAULT — niente edifici / valore mancante: invisibile
+            return {
+                pane: 'pane_Exposedbuildingsperhexagon2100_3',
+                opacity: 0, fill: false, fillOpacity: 0, interactive: false,
+            }
+        }
+        map.createPane('pane_Exposedbuildingsperhexagon2100_3');
+        map.getPane('pane_Exposedbuildingsperhexagon2100_3').style.zIndex = 403;
+        map.getPane('pane_Exposedbuildingsperhexagon2100_3').style['mix-blend-mode'] = 'normal';
+        var layer_Exposedbuildingsperhexagon2100_3 = new L.geoJson(json_Exposedbuildingsperhexagon2100_3, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Exposedbuildingsperhexagon2100_3',
+            layerName: 'layer_Exposedbuildingsperhexagon2100_3',
+            pane: 'pane_Exposedbuildingsperhexagon2100_3',
+            onEachFeature: pop_Exposedbuildingsperhexagon2100_3,
+            style: style_Exposedbuildingsperhexagon2100_3_0,
+        });
+        bounds_group.addLayer(layer_Exposedbuildingsperhexagon2100_3);
+        map.addLayer(layer_Exposedbuildingsperhexagon2100_3);
+        function pop_Inundationextent210010mAHD_4(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2"><strong>Inundation 2100 (+1.0 m AHD)</strong></td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Inundationextent210010mAHD_4_0() {
+            return {
+                pane: 'pane_Inundationextent210010mAHD_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(60,255,213,1.0)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_Inundationextent210010mAHD_4');
+        map.getPane('pane_Inundationextent210010mAHD_4').style.zIndex = 404;
+        map.getPane('pane_Inundationextent210010mAHD_4').style['mix-blend-mode'] = 'normal';
+        var layer_Inundationextent210010mAHD_4 = new L.geoJson(json_Inundationextent210010mAHD_4, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Inundationextent210010mAHD_4',
+            layerName: 'layer_Inundationextent210010mAHD_4',
+            pane: 'pane_Inundationextent210010mAHD_4',
+            onEachFeature: pop_Inundationextent210010mAHD_4,
+            style: style_Inundationextent210010mAHD_4_0,
+        });
+        bounds_group.addLayer(layer_Inundationextent210010mAHD_4);
+        map.addLayer(layer_Inundationextent210010mAHD_4);
+        function pop_Exposedbuildingsn58_5(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2"><strong>Exposed building</strong></td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['name'] !== null ? autolinker.link(String(feature.properties['name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Exposedbuildingsn58_5_0() {
+            return {
+                pane: 'pane_Exposedbuildingsn58_5',
+                opacity: 1,
+                color: 'rgba(231,231,231,0.34901960784313724)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,70,216,0.7254901960784313)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_Exposedbuildingsn58_5');
+        map.getPane('pane_Exposedbuildingsn58_5').style.zIndex = 405;
+        map.getPane('pane_Exposedbuildingsn58_5').style['mix-blend-mode'] = 'normal';
+        var layer_Exposedbuildingsn58_5 = new L.geoJson(json_Exposedbuildingsn58_5, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Exposedbuildingsn58_5',
+            layerName: 'layer_Exposedbuildingsn58_5',
+            pane: 'pane_Exposedbuildingsn58_5',
+            onEachFeature: pop_Exposedbuildingsn58_5,
+            style: style_Exposedbuildingsn58_5_0,
+        });
+        bounds_group.addLayer(layer_Exposedbuildingsn58_5);
+        map.addLayer(layer_Exposedbuildingsn58_5);
+        var overlaysTree = [
+            {label: '<img src="legend/Exposedbuildingsn58_5.png" /> Exposed buildings (n=58)', layer: layer_Exposedbuildingsn58_5},
+            {label: '<img src="legend/Inundationextent210010mAHD_4.png" /> Inundation 2100 (+1.0m AHD) — 36.8 ha', layer: layer_Inundationextent210010mAHD_4},
+            {label: 'Exposed buildings per hexagon (2100)<br /><table><tr><td style="text-align: center;"><img src="legend/Exposedbuildingsperhexagon2100_3_1building0.png" /></td><td>1 building</td></tr><tr><td style="text-align: center;"><img src="legend/Exposedbuildingsperhexagon2100_3_2buildings1.png" /></td><td>2 buildings</td></tr><tr><td style="text-align: center;"><img src="legend/Exposedbuildingsperhexagon2100_3_3buildings2.png" /></td><td>3 buildings</td></tr><tr><td style="text-align: center;"><img src="legend/Exposedbuildingsperhexagon2100_3_6buildings3.png" /></td><td>6 buildings</td></tr><tr><td style="text-align: center;"><img src="legend/Exposedbuildingsperhexagon2100_3_7buildings4.png" /></td><td>7 buildings</td></tr><tr><td style="text-align: center;"><img src="legend/Exposedbuildingsperhexagon2100_3_12buildings5.png" /></td><td>12 buildings</td></tr></table>', layer: layer_Exposedbuildingsperhexagon2100_3},
+            {label: '<img src="legend/Buildingfootprints_2.png" /> Building footprints', layer: layer_Buildingfootprints_2},
+            {label: 'PDC zones intersecting inundation<br /><table><tr><td style="text-align: center;"><img src="legend/PDCzonesintersectinginundation_1_Employment0.png" /></td><td>Employment</td></tr><tr><td style="text-align: center;"><img src="legend/PDCzonesintersectinginundation_1_EstablishedNeighbourhood1.png" /></td><td>Established Neighbourhood</td></tr><tr><td style="text-align: center;"><img src="legend/PDCzonesintersectinginundation_1_GeneralNeighbourhood2.png" /></td><td>General Neighbourhood</td></tr><tr><td style="text-align: center;"><img src="legend/PDCzonesintersectinginundation_1_HousingDiversityNeighbourhood3.png" /></td><td>Housing Diversity Neighbourhood</td></tr><tr><td style="text-align: center;"><img src="legend/PDCzonesintersectinginundation_1_OpenSpace4.png" /></td><td>Open Space</td></tr><tr><td style="text-align: center;"><img src="legend/PDCzonesintersectinginundation_1_Recreation5.png" /></td><td>Recreation</td></tr><tr><td style="text-align: center;"><img src="legend/PDCzonesintersectinginundation_1_StrategicEmployment6.png" /></td><td>Strategic Employment</td></tr><tr><td style="text-align: center;"><img src="legend/PDCzonesintersectinginundation_1_UrbanActivityCentre7.png" /></td><td>Urban Activity Centre</td></tr><tr><td style="text-align: center;"><img src="legend/PDCzonesintersectinginundation_1_WaterfrontNeighbourhood8.png" /></td><td>Waterfront Neighbourhood</td></tr></table>', layer: layer_PDCzonesintersectinginundation_1},
+            {label: 'Mean elevation per hexagon (m AHD)<br /><table><tr><td style="text-align: center;"><img src="legend/MeanelevationperhexagonmAHD1_0_00820.png" /></td><td>0.07 - 0.82</td></tr><tr><td style="text-align: center;"><img src="legend/MeanelevationperhexagonmAHD1_0_082221.png" /></td><td>0.82 - 2.20</td></tr><tr><td style="text-align: center;"><img src="legend/MeanelevationperhexagonmAHD1_0_22332.png" /></td><td>2.20 - 3.30</td></tr><tr><td style="text-align: center;"><img src="legend/MeanelevationperhexagonmAHD1_0_334963.png" /></td><td>3.30 - 4.96</td></tr><tr><td style="text-align: center;"><img src="legend/MeanelevationperhexagonmAHD1_0_4967674.png" /></td><td>4.96 - 7.67</td></tr></table>', layer: layer_MeanelevationperhexagonmAHD1_0},]
+        var lay = L.control.layers.tree(null, overlaysTree,{
+            collapsed: false,
+        });
+        lay.addTo(map);
+		document.addEventListener("DOMContentLoaded", function() {
+            function newLayersListHeight() {
+                var layerScrollbarElement = document.querySelector('.leaflet-control-layers-scrollbar');
+                if (layerScrollbarElement) {
+                    var layersListElement = document.querySelector('.leaflet-control-layers-list');
+                    var originalHeight = layersListElement.style.height
+                        || window.getComputedStyle(layersListElement).height;
+                    var newHeight = parseFloat(originalHeight) - 50;
+                    layersListElement.style.height = newHeight + 'px';
+                }
+            }
+            var isLayersListExpanded = true;
+            var controlLayersElement = document.querySelector('.leaflet-control-layers');
+            var toggleLayerControl = document.querySelector('.leaflet-control-layers-toggle');
+            toggleLayerControl.addEventListener('click', function() {
+                if (isLayersListExpanded) {
+                    controlLayersElement.classList.remove('leaflet-control-layers-expanded');
+                } else {
+                    controlLayersElement.classList.add('leaflet-control-layers-expanded');
+                }
+                isLayersListExpanded = !isLayersListExpanded;
+                newLayersListHeight()
+            });
+			if (controlLayersElement) {
+				controlLayersElement.addEventListener('click', function(event) {
+					var toggleLayerHeaderPointer = event.target.closest('.leaflet-layerstree-header-pointer span');
+					if (toggleLayerHeaderPointer) {
+						newLayersListHeight();
+					}
+				});
+			}
+            setTimeout(function() {
+                toggleLayerControl.click();
+            }, 10);
+            setTimeout(function() {
+                toggleLayerControl.click();
+            }, 10);
+            var isSmallScreen = window.innerWidth < 650;
+            if (isSmallScreen) {
+                setTimeout(function() {
+                    controlLayersElement.classList.remove('leaflet-control-layers-expanded');
+                    isLayersListExpanded = !isLayersListExpanded;
+                }, 500);
+            }
+        });
+        setBounds();
+        </script>
+    </body>
+</html>
