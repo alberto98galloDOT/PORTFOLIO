@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GIS Portfolio — Alberto Gallo</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0d0d0d; color: #e0e0e0; font-family: Arial, sans-serif; min-height: 100vh; }
+  header { padding: 60px 40px 40px; border-bottom: 1px solid #222; }
+  header h1 { font-size: 32px; font-weight: 700; letter-spacing: 2px; color: #fff; text-transform: uppercase; }
+  header .subtitle { margin-top: 8px; font-size: 14px; color: #888; letter-spacing: 1px; }
+  header .pia { margin-top: 6px; font-size: 13px; color: #aaa; letter-spacing: 1px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; padding: 24px; margin-top: 2px; }
+  .card { background: #111; padding: 40px; border: 1px solid #1a1a1a; transition: border-color 0.2s; }
+  .card:hover { border-color: #444; }
+  .card .tag { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #555; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px solid #1a1a1a; }
+  .card h2 { font-size: 18px; font-weight: 400; color: #fff; margin-bottom: 8px; line-height: 1.4; }
+  .card .location { font-size: 12px; color: #666; margin-bottom: 16px; }
+  .card p { font-size: 13px; color: #777; line-height: 1.7; margin-bottom: 24px; }
+  .card a { display: inline-block; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: #aaa; text-decoration: none; border-bottom: 1px solid #333; padding-bottom: 2px; transition: color 0.2s, border-color 0.2s; }
+  .card a:hover { color: #fff; border-color: #fff; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 10px; vertical-align: middle; }
+  footer { padding: 40px; border-top: 1px solid #1a1a1a; margin-top: 2px; }
+  footer p { font-size: 12px; color: #444; letter-spacing: 1px; }
+  footer a { color: #555; text-decoration: none; }
+  footer a:hover { color: #aaa; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Alberto Gallo — GIS &amp; Spatial Analysis Portfolio</h1>
+  <p class="subtitle">Urban Planner &amp; GIS Analyst &nbsp;·&nbsp; IUAV Venice</p>
+  <p class="pia">Graduate Member, Planning Institute of Australia (PIA)</p>
+</header>
+
+<div class="grid">
+
+  <div class="card">
+    <div class="tag"><span class="dot" style="background:#d7191c"></span>Fire Risk · Weighted Overlay</div>
+    <h2>Blue Mountains Bushfire Risk Assessment</h2>
+    <div class="location">New South Wales, Australia</div>
+    <p>Multi-criteria weighted overlay combining NDVI, slope, aspect, WUI exposure and time-since-fire. Validated against 403 NPWS wildfire polygons. v2 model integrates fuel accumulation raster at 25% weight.</p>
+    <a href="https://alberto98gallodot.github.io/bluemountains-bushfire/" target="_blank">Open interactive map →</a>
+  </div>
+
+  <div class="card">
+    <div class="tag"><span class="dot" style="background:#4575b4"></span>Flood Risk · HAND Model</div>
+    <h2>Lockyer Valley Flood Risk Assessment</h2>
+    <div class="location">Queensland, Australia</div>
+    <p>HAND model at two resolutions (30m SRTM and 5m LiDAR). Cross-validated against IQ QLD Floodplain Assessment Overlay. Resolution comparison shows 30% of buildings reclassified at higher resolution.</p>
+    <a href="https://alberto98gallodot.github.io/LOCKYER-VALLEY/" target="_blank">Open interactive map →</a>
+  </div>
+
+  <div class="card">
+    <div class="tag"><span class="dot" style="background:#f46d43"></span>Burn Severity · dNBR</div>
+    <h2>Southern Western Downs Burn Severity</h2>
+    <div class="location">Queensland, Australia</div>
+    <p>Differenced Normalised Burn Ratio (dNBR) derived from Landsat 9 OLI-2. Five severity classes calibrated against USGS/FIREMON thresholds. Intersected with QLUMP 2019 land use for impact assessment.</p>
+    <a href="https://alberto98gallodot.github.io/Burn-severity-WR/" target="_blank">Open interactive map →</a>
+  </div>
+
+  <div class="card">
+    <div class="tag"><span class="dot" style="background:#1a9641"></span>Habitat Mapping · Gap Analysis</div>
+    <h2>Wet Tropics Habitat Mapping &amp; Conservation Gap Analysis</h2>
+    <div class="location">Cairns Regional LGA, Queensland, Australia</div>
+    <p>Essential Habitat mapping under VMA 1999. Southern Cassowary as indicator species (n=372 records). Gap analysis reveals 8.7% of Essential Habitat formally protected — 74.5% of cassowary records outside protected areas.</p>
+    <a href="https://alberto98gallodot.github.io/Habitat-mapping-Wet-tropics/" target="_blank">Open interactive map →</a>
+  </div>
+<div class="card">
+    <div class="tag"><span class="dot" style="background:#3cffd5"></span>Coastal Risk · Bathtub Model</div>
+    <h2>Port Adelaide Coastal Inundation Assessment</h2>
+    <div class="location">Gulf St Vincent, South Australia</div>
+    <p>Bathtub inundation model with hydraulic connectivity correction (GRASS r.clump) on 1m LiDAR. Sea-level-rise scenario +1.0m (2100) floods 36.8 ha and exposes 58 buildings at Birkenhead. Planning exposure mapped against the SA Planning &amp; Design Code.</p>
+    <a href="https://alberto98gallodot.github.io/PORTFOLIO/coastal-flooding/" target="_blank">Open interactive map →</a>
+  </div>
+</div>
+
+<footer>
+  <p>
+    Independent portfolio — all analysis conducted in QGIS using open-source data (Geoscience Australia, Queensland Spatial, NSW SEED, USGS, GBIF, SA Planning &amp; Design Code, SA Coast Protection Board).
+    &nbsp;·&nbsp;
+    <a href="https://github.com/alberto98galloDOT" target="_blank">GitHub</a>
+  </p>
+</footer>
+
+</body>
+</html>
